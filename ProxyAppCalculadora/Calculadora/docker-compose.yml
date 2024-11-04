@@ -1,0 +1,89 @@
+services:
+  calculadora_server:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: calculadora
+    volumes:
+      - documentation:/app/files/documentation
+      - coverage:/app/files/coverage
+      - tests:/app/files/tests
+    networks:
+      - calculadoraNetwork
+
+  documentation_server:
+    container_name: documentationApache
+    image: ubuntu/apache2
+    volumes:
+      - documentation:/var/www/html
+      - ./dominios/documentationApache:/etc/apache2/sites-available
+    depends_on:
+      - calculadora_server
+    networks:
+      - calculadoraNetwork
+    restart: always
+
+  coverage_server:
+    container_name: coverageNginx
+    image: ubuntu/nginx
+    volumes:
+      - coverage:/var/www/html
+      - ./dominios/coverageNginx:/etc/nginx/sites-available
+    depends_on:
+      - calculadora_server
+    networks:
+      - calculadoraNetwork
+    restart: always
+
+  test_server:
+    container_name: testNginx
+    image: ubuntu/nginx
+    volumes:
+      - tests:/var/www/html
+      - ./dominios/testsNginx:/etc/nginx/sites-available
+    depends_on:
+      - calculadora_server
+    networks:
+      - calculadoraNetwork
+    restart: always
+
+  default_server:
+    container_name: defaultNginx
+    image: ubuntu/nginx
+    volumes:
+      - ./dominios/defaultNginx/sites-available:/etc/nginx/sites-available
+      - ./dominios/defaultNginx/website:/var/www/html
+    depends_on:
+      - calculadora_server
+    networks:
+      - calculadoraNetwork
+    restart: always
+
+  proxy_server:
+    image: ubuntu/nginx
+    container_name: proxy
+    ports:
+    - "80:80"
+    - "443:443"
+    volumes:
+      - ./dominios/proxy/sites-available/nginx.conf:/etc/nginx/nginx.conf
+      - ./dominios/proxy/certs:/etc/nginx/certs
+    depends_on:
+      - default_server
+      - calculadora_server
+      - documentation_server
+      - test_server
+      - coverage_server
+    networks:
+      - calculadoraNetwork
+    restart: always
+
+volumes:
+  documentation:
+  coverage:
+  tests:
+
+networks:
+  calculadoraNetwork:
+
+  
